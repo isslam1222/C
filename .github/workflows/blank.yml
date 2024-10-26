@@ -1,36 +1,23 @@
-# This is a basic workflow to help you get started with Actions
+# Reverse Windows RDP for GitHub Actions by PANCHO7532
+# Based on the work of @nelsonjchen
+# This script is executed when GitHub actions is initialized.
+Write-Output "[INFO] Script started!"
 
-name: CI
+# First we download ngrok
+Invoke-WebRequest -Uri https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-windows-amd64.zip -OutFile ngrok.zip
 
-# Controls when the workflow will run
-on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+# Then we unzip it
+Expand-Archive -LiteralPath '.\ngrok.zip'
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+# Set-up and save ngrok authtoken
+./ngrok/ngrok.exe authtoken $env:NGROK_AUTH_TOKEN
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
-jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
-    runs-on: ubuntu-latest
+# Enabling RDP Access
+Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server'-name "fDenyTSConnections" -Value 0
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4
+# Authorize RDP Service from firewall so we don't get a weird state
+Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
-
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
-        run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+# Change password to the one we set-up as RDP_PASSWORD on our repo settings.
+Set-LocalUser -Name "runneradmin" -Password (ConvertTo-SecureString -AsPlainText "$env:RDP_PASSWORD" -Force)
+Exit
